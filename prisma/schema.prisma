@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model MenuItem {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Float
+  category    String   // burger, sandwich, sides, beverage
+  image       String?
+  isVeg       Boolean  @default(true)
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  orderItems  OrderItem[]
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String   @unique
+  email     String?
+  createdAt DateTime @default(now())
+  
+  orders    Order[]
+}
+
+model Order {
+  id                String   @id @default(cuid())
+  orderNumber       String   @unique
+  customerId        String
+  customer          Customer @relation(fields: [customerId], references: [id])
+  
+  // Delivery Details
+  deliveryName      String
+  deliveryPhone     String
+  deliveryEmail     String?
+  addressLine1      String
+  addressLine2      String?
+  landmark          String?
+  pincode           String
+  city              String   @default("Ahmedabad")
+  
+  // Order Details
+  subtotal          Float
+  deliveryFee       Float
+  tax               Float
+  discount          Float    @default(0)
+  total             Float
+  
+  // Status
+  status            OrderStatus @default(PENDING)
+  paymentStatus     PaymentStatus @default(PENDING)
+  
+  // Payment
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  razorpaySignature String?
+  
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  estimatedDelivery DateTime?
+  
+  orderItems        OrderItem[]
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  
+  quantity   Int
+  price      Float    // Price at time of order
+  
+  @@index([orderId])
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // Hashed
+  name      String
+  createdAt DateTime @default(now())
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
