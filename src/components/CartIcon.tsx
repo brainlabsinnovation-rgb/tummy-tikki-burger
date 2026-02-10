@@ -1,12 +1,16 @@
-'use client'
-
 import { ShoppingCart } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
 import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
 
 export default function CartIcon() {
   const { getTotalItems } = useCartStore()
+  const [mounted, setMounted] = useState(false)
   const totalItems = getTotalItems()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   return (
     <motion.div
@@ -20,8 +24,8 @@ export default function CartIcon() {
       }}
     >
       <ShoppingCart className="w-6 h-6 text-gray-700 hover:text-orange-500 transition-colors" />
-      
-      {totalItems > 0 && (
+
+      {mounted && totalItems > 0 && (
         <motion.div
           className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
           initial={{ scale: 0 }}

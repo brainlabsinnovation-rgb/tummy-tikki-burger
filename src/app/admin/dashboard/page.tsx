@@ -1,19 +1,32 @@
-import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import Link from 'next/link';
 import { IndianRupee, Package, Utensils, TrendingUp, Clock, ChevronRight } from 'lucide-react';
 
 export default async function AdminDashboard() {
-  // Fetch stats
-  const { count: ordersCount } = await supabase.from('Order').select('*', { count: 'exact', head: true });
-  const { count: menuCount } = await supabase.from('MenuItem').select('*', { count: 'exact', head: true });
-  const { data: revenueData } = await supabase.from('Order').select('total').eq('paymentStatus', 'PAID');
+  // Fetch stats using Supabase
+  // Note: If RLS is enabled, these might require a Service Role key or authenticated user.
+  // Using public client for now as requested.
 
-  const totalRevenue = revenueData?.reduce((acc, curr) => acc + (curr.total || 0), 0) || 0;
+  const { count: ordersCount } = await supabase
+    .from('Order')
+    .select('*', { count: 'exact', head: true });
+
+  const { count: menuCount } = await supabase
+    .from('MenuItem')
+    .select('*', { count: 'exact', head: true });
+
+  // For revenue, we fetch 'total' of paid orders and sum it up
+  const { data: revenueData } = await supabase
+    .from('Order')
+    .select('total')
+    .eq('paymentStatus', 'PAID');
+
+  const totalRevenue = revenueData?.reduce((acc, order) => acc + (order.total || 0), 0) || 0;
 
   // Fetch recent orders
   const { data: recentOrders } = await supabase
     .from('Order')
-    .select('*, customer:Customer(name, phone)')
+    .select('*')
     .order('createdAt', { ascending: false })
     .limit(5);
 
@@ -95,7 +108,7 @@ export default async function AdminDashboard() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {recentOrders && recentOrders.length > 0 ? (
-                    recentOrders.map((order) => (
+                    recentOrders.map((order: any) => (
                       <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
                           <span className="font-mono font-bold text-orange-600">{order.orderNumber}</span>
@@ -109,8 +122,8 @@ export default async function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${order.status === 'DELIVERED' ? 'bg-green-100 text-green-700' :
-                              order.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
-                                'bg-orange-100 text-orange-700'
+                            order.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
+                              'bg-orange-100 text-orange-700'
                             }`}>
                             {order.status}
                           </span>

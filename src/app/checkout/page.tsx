@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useCartStore } from '@/store/cartStore'
@@ -23,6 +23,7 @@ interface FormData {
 export default function Checkout() {
   const router = useRouter()
   const { items, clearCart, getSubtotal, getDeliveryFee, getTax, getGrandTotal } = useCartStore()
+  const [isMounted, setIsMounted] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
@@ -35,10 +36,22 @@ export default function Checkout() {
     city: 'Ahmedabad'
   })
 
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
   const subtotal = getSubtotal()
   const deliveryFee = getDeliveryFee()
   const tax = getTax()
   const grandTotal = getGrandTotal()
+
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      </div>
+    )
+  }
 
   if (items.length === 0) {
     return (
@@ -367,25 +380,25 @@ export default function Checkout() {
               </div>
 
               {/* Price Breakdown */}
-              <div className="border-t pt-4 space-y-2">
-                <div className="flex justify-between text-sm">
+              <div className="border-t border-gray-100 pt-4 space-y-3">
+                <div className="flex justify-between text-sm text-gray-600">
                   <span>Subtotal</span>
-                  <span><IndianRupee className="w-3 h-3 inline" />{subtotal}</span>
+                  <span className="font-medium text-gray-900"><IndianRupee className="w-3 h-3 inline" />{subtotal}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-sm text-gray-600">
                   <span>Delivery Fee</span>
-                  <span className={deliveryFee === 0 ? 'text-green-600' : ''}>
+                  <span className={`font-medium ${deliveryFee === 0 ? 'text-green-600' : 'text-gray-900'}`}>
                     {deliveryFee === 0 ? 'FREE' : <><IndianRupee className="w-3 h-3 inline" />{deliveryFee}</>}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-sm text-gray-600">
                   <span>Tax (5%)</span>
-                  <span><IndianRupee className="w-3 h-3 inline" />{tax}</span>
+                  <span className="font-medium text-gray-900"><IndianRupee className="w-3 h-3 inline" />{tax}</span>
                 </div>
-                <div className="flex justify-between font-bold text-lg pt-2 border-t">
-                  <span>Total</span>
-                  <span className="text-orange-500">
-                    <IndianRupee className="w-4 h-4 inline" />{grandTotal}
+                <div className="flex justify-between font-bold text-lg pt-4 border-t border-gray-100">
+                  <span className="text-gray-900">Total</span>
+                  <span className="text-orange-600 text-xl">
+                    <IndianRupee className="w-5 h-5 inline" />{grandTotal}
                   </span>
                 </div>
               </div>
