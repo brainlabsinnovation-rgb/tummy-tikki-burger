@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const body = await req.json();
     const {
@@ -13,31 +13,36 @@ export async function POST(req: NextRequest) {
       total
     } = body;
 
-    // Generate order number
-    const orderNumber = `TTB${Date.now()}`;
-
-    // Calculate estimated delivery (40 minutes from now)
-    const estimatedDelivery = new Date(Date.now() + 40 * 60 * 1000).toISOString();
-
-    // 1. Create or get customer
-    const { data: customer, error: customerError } = await supabase
+    // 1. Create or update customer
+    // The previous Prisma code used upsert on phone.
+    const { data: customerData, error: customerError } = await supabase
       .from('Customer')
       .upsert({
         name: deliveryDetails.fullName,
         phone: deliveryDetails.phone,
         email: deliveryDetails.email || null,
+        updatedAt: new Date().toISOString(),
       }, { onConflict: 'phone' })
-      .select('id')
+      .select()
       .single();
 
-    if (customerError) throw customerError;
+    if (customerError) {
+      console.error('Error upserting customer:', customerError);
+      throw new Error('Failed to create/update customer');
+    }
 
-    // 2. Create order
-    const { data: order, error: orderError } = await supabase
+    if (!customerData) {
+      throw new Error('Customer data not returned');
+    }
+
+    // 2. Create Order
+    const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    const { data: orderData, error: orderError } = await supabase
       .from('Order')
       .insert({
-        orderNumber,
-        customerId: customer.id,
+        orderNumber: orderNumber,
+        customerId: customerData.id,
         deliveryName: deliveryDetails.fullName,
         deliveryPhone: deliveryDetails.phone,
         deliveryEmail: deliveryDetails.email || null,
@@ -46,89 +51,114 @@ export async function POST(req: NextRequest) {
         landmark: deliveryDetails.landmark || null,
         pincode: deliveryDetails.pincode,
         city: deliveryDetails.city || 'Ahmedabad',
-        subtotal,
-        deliveryFee,
-        tax,
+        state: deliveryDetails.state || 'Gujarat',
+        subtotal: subtotal,
+        deliveryFee: deliveryFee,
+        tax: tax,
+        total: total,
         discount: 0,
-        total,
-        estimatedDelivery,
+        paymentStatus: 'PENDING',
+        status: 'PENDING',
+        paymentMethod: 'COD', // Defaulting to COD if not provided in body top-level
+        estimatedDelivery: new Date(Date.now() + 40 * 60 * 1000).toISOString(),
+        updatedAt: new Date().toISOString(),
       })
-      .select('*')
+      .select()
       .single();
 
-    if (orderError) throw orderError;
+    if (orderError) {
+      console.error('Error creating order:', orderError);
+      throw new Error('Failed to create order');
+    }
 
-    // 3. Create order items
+    // 3. Create OrderItems
     const orderItemsData = items.map((item: any) => ({
-      orderId: order.id,
+      orderId: orderData.id,
       menuItemId: item.id,
+      itemName: item.name,
+      itemImage: item.image || null,
       quantity: item.quantity,
       price: item.price,
+      subtotal: item.price * item.quantity,
     }));
 
     const { error: itemsError } = await supabase
       .from('OrderItem')
       .insert(orderItemsData);
 
-    if (itemsError) throw itemsError;
+    if (itemsError) {
+      console.error('Error creating order items:', itemsError);
+      // Note: Code cleanup would be needed here in a real transaction
+      throw new Error('Failed to create order items');
+    }
 
-    // 4. Return complete order
     return NextResponse.json({
-      ...order,
-      orderItems: items // For the frontend to use immediately
+      success: true,
+      orderId: orderData.id,
+      orderNumber: orderNumber
     });
 
   } catch (error) {
     console.error('Error creating order:', error);
-    const message = error instanceof Error ? error.message : 'Failed to create order';
     return NextResponse.json(
-      { error: message },
+      { error: 'Failed to create order' },
       { status: 500 }
     );
   }
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const phone = searchParams.get('phone');
 
     if (!phone) {
+      return NextResponse.json({ orders: [] });
+    }
+
+    // Find customer first to get ID? Or join?
+    // Let's try to join via Customer table
+    // Or fetch by phone if we can join Order -> Customer
+
+    const { data: orders, error } = await supabase
+      .from('Order')
+      .select(`
+                *,
+                customer:Customer!inner(phone),
+                orderItems:OrderItem(*)
+            `)
+      .eq('customer.phone', phone)
+      .order('createdAt', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching orders:', error);
+      // If connection or table error
       return NextResponse.json(
-        { error: 'Phone number required' },
-        { status: 400 }
+        { error: 'Failed to fetch orders' },
+        { status: 500 }
       );
     }
 
-    const { data: customer, error: customerError } = await supabase
-      .from('Customer')
-      .select('id')
-      .eq('phone', phone)
-      .single();
-
-    if (customerError || !customer) {
-      return NextResponse.json([]);
+    if (!orders) {
+      return NextResponse.json({ orders: [] });
     }
 
-    const { data: orders, error: ordersError } = await supabase
-      .from('Order')
-      .select(`
-        *,
-        orderItems:OrderItem(
-          *,
-          menuItem:MenuItem(*)
-        )
-      `)
-      .eq('customerId', customer.id)
-      .order('createdAt', { ascending: false });
+    // Transform for frontend
+    const formattedOrders = orders.map((order: any) => ({
+      ...order,
+      order_items: order.orderItems?.map((item: any) => ({
+        ...item,
+        item_name: item.itemName,
+      })) || [],
+      orderItems: undefined
+    }));
 
-    if (ordersError) throw ordersError;
+    return NextResponse.json({ orders: formattedOrders });
 
-    return NextResponse.json(orders);
   } catch (error) {
     console.error('Error fetching orders:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch orders' },
+      { error: 'Internal Server Error' },
       { status: 500 }
     );
   }

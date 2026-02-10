@@ -193,9 +193,8 @@ export default function OrderDetailsPage() {
                 </div>
                 <div>
                   <span className="text-gray-600">Payment Status:</span>
-                  <p className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
-                    orderData.paymentStatus === 'PAID' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                  }`}>
+                  <p className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${orderData.paymentStatus === 'PAID' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                    }`}>
                     {orderData.paymentStatus}
                   </p>
                 </div>
@@ -272,26 +271,27 @@ export default function OrderDetailsPage() {
               transition={{ delay: 0.3 }}
             >
               <h2 className="text-xl font-bold text-gray-900 mb-6">Price Details</h2>
-              
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
+
+              {/* Price Breakdown */}
+              <div className="border-t border-gray-100 pt-4 space-y-3">
+                <div className="flex justify-between text-sm text-gray-600">
                   <span>Subtotal</span>
-                  <span><IndianRupee className="w-3 h-3 inline" />{orderData.subtotal}</span>
+                  <span className="font-medium text-gray-900"><IndianRupee className="w-3 h-3 inline" />{orderData.subtotal}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-sm text-gray-600">
                   <span>Delivery Fee</span>
-                  <span className={orderData.deliveryFee === 0 ? 'text-green-600' : ''}>
+                  <span className={`font-medium ${orderData.deliveryFee === 0 ? 'text-green-600' : 'text-gray-900'}`}>
                     {orderData.deliveryFee === 0 ? 'FREE' : <><IndianRupee className="w-3 h-3 inline" />{orderData.deliveryFee}</>}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-sm text-gray-600">
                   <span>Tax (5%)</span>
-                  <span><IndianRupee className="w-3 h-3 inline" />{orderData.tax}</span>
+                  <span className="font-medium text-gray-900"><IndianRupee className="w-3 h-3 inline" />{orderData.tax}</span>
                 </div>
-                <div className="flex justify-between font-bold text-lg pt-3 border-t">
-                  <span>Total Paid</span>
-                  <span className="text-orange-500">
-                    <IndianRupee className="w-4 h-4 inline" />{orderData.total}
+                <div className="flex justify-between font-bold text-lg pt-4 border-t border-gray-100">
+                  <span className="text-gray-900">Total Paid</span>
+                  <span className="text-orange-600 text-xl">
+                    <IndianRupee className="w-5 h-5 inline" />{orderData.total}
                   </span>
                 </div>
               </div>

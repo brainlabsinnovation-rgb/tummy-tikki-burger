@@ -162,7 +162,7 @@ export default function OrdersPage() {
                             {order.paymentStatus}
                           </span>
                         </div>
-                        
+
                         <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
                           <div className="flex items-center gap-1">
                             <Calendar className="w-4 h-4" />
@@ -180,12 +180,12 @@ export default function OrdersPage() {
                           <span className="text-sm text-gray-600">Items:</span>
                           <div className="flex flex-wrap gap-1">
                             {order.order_items.slice(0, 3).map((item: any, index: number) => (
-                              <span key={index} className="text-xs bg-gray-100 px-2 py-1 rounded">
+                              <span key={index} className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
                                 {item.quantity}x {item.item_name}
                               </span>
                             ))}
                             {order.order_items.length > 3 && (
-                              <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                              <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
                                 +{order.order_items.length - 3} more
                               </span>
                             )}
@@ -200,7 +200,7 @@ export default function OrdersPage() {
                             {order.total}
                           </div>
                         </div>
-                        
+
                         <Link href={`/orders/${order.id}`}>
                           <Button variant="outline" size="sm" className="flex items-center gap-2">
                             View Details

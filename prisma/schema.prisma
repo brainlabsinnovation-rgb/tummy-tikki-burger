@@ -7,89 +7,255 @@ datasource db {
 }
 
 model MenuItem {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   name        String
+  slug        String      @unique
   description String?
   price       Float
-  category    String   // burger, sandwich, sides, beverage
+  categoryId  String
   image       String?
-  isVeg       Boolean  @default(true)
-  isAvailable Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  isVeg       Boolean     @default(true)
+  isAvailable Boolean     @default(true)
+  isFeatured  Boolean     @default(false)
+  sortOrder   Int         @default(0)
+  calories    Int?
+  protein     Float?
+  carbs       Float?
+  fat         Float?
+  stockCount  Int?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  CartItem    CartItem[]
+  Category    Category    @relation(fields: [categoryId], references: [id])
   orderItems  OrderItem[]
+  Review      Review[]
+
+  @@index([categoryId])
+  @@index([isAvailable])
+  @@index([isFeatured])
+  @@index([slug])
 }
 
 model Customer {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String   @unique
-  email     String?
-  createdAt DateTime @default(now())
-  
-  orders    Order[]
+  id            String     @id @default(cuid())
+  name          String
+  phone         String     @unique
+  email         String?    @unique
+  dateOfBirth   DateTime?
+  gender        Gender?
+  isVegetarian  Boolean    @default(false)
+  totalOrders   Int        @default(0)
+  totalSpent    Float      @default(0)
+  loyaltyPoints Int        @default(0)
+  isActive      Boolean    @default(true)
+  isBlocked     Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime
+  lastOrderAt   DateTime?
+  Address       Address[]
+  CartItem      CartItem[]
+  orders        Order[]
+  Review        Review[]
+
+  @@index([email])
+  @@index([isActive])
+  @@index([phone])
 }
 
 model Order {
-  id                String   @id @default(cuid())
-  orderNumber       String   @unique
-  customerId        String
-  customer          Customer @relation(fields: [customerId], references: [id])
-  
-  // Delivery Details
-  deliveryName      String
-  deliveryPhone     String
-  deliveryEmail     String?
-  addressLine1      String
-  addressLine2      String?
-  landmark          String?
-  pincode           String
-  city              String   @default("Ahmedabad")
-  
-  // Order Details
-  subtotal          Float
-  deliveryFee       Float
-  tax               Float
-  discount          Float    @default(0)
-  total             Float
-  
-  // Status
-  status            OrderStatus @default(PENDING)
-  paymentStatus     PaymentStatus @default(PENDING)
-  
-  // Payment
-  razorpayOrderId   String?
-  razorpayPaymentId String?
-  razorpaySignature String?
-  
-  // Timestamps
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  estimatedDelivery DateTime?
-  
-  orderItems        OrderItem[]
+  id                 String               @id @default(cuid())
+  orderNumber        String               @unique
+  customerId         String
+  addressId          String?
+  deliveryName       String
+  deliveryPhone      String
+  deliveryEmail      String?
+  addressLine1       String
+  addressLine2       String?
+  landmark           String?
+  pincode            String
+  city               String               @default("Ahmedabad")
+  state              String               @default("Gujarat")
+  subtotal           Float
+  deliveryFee        Float
+  tax                Float
+  discount           Float                @default(0)
+  total              Float
+  couponCode         String?
+  couponDiscount     Float                @default(0)
+  status             OrderStatus          @default(PENDING)
+  paymentStatus      PaymentStatus        @default(PENDING)
+  paymentMethod      PaymentMethod        @default(RAZORPAY)
+  razorpayOrderId    String?              @unique
+  razorpayPaymentId  String?              @unique
+  razorpaySignature  String?
+  estimatedDelivery  DateTime?
+  confirmedAt        DateTime?
+  preparingAt        DateTime?
+  outForDeliveryAt   DateTime?
+  deliveredAt        DateTime?
+  cancelledAt        DateTime?
+  cancellationReason String?
+  customerNotes      String?
+  adminNotes         String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  Address            Address?             @relation(fields: [addressId], references: [id])
+  customer           Customer             @relation(fields: [customerId], references: [id])
+  orderItems         OrderItem[]
+  OrderStatusHistory OrderStatusHistory[]
+
+  @@index([createdAt])
+  @@index([customerId])
+  @@index([orderNumber])
+  @@index([paymentStatus])
+  @@index([pincode])
+  @@index([status])
 }
 
 model OrderItem {
   id         String   @id @default(cuid())
   orderId    String
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   menuItemId String
-  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
-  
+  itemName   String
+  itemImage  String?
   quantity   Int
-  price      Float    // Price at time of order
-  
+  price      Float
+  subtotal   Float
+  createdAt  DateTime @default(now())
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
   @@index([orderId])
+  @@index([menuItemId])
 }
 
 model Admin {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String   // Hashed
-  name      String
-  createdAt DateTime @default(now())
+  id          String    @id @default(cuid())
+  email       String    @unique
+  password    String
+  name        String
+  role        AdminRole @default(ADMIN)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime
+  lastLoginAt DateTime?
+
+  @@index([email])
+  @@index([isActive])
+}
+
+model Address {
+  id           String   @id
+  customerId   String
+  label        String
+  name         String
+  phone        String
+  addressLine1 String
+  addressLine2 String?
+  landmark     String?
+  pincode      String
+  city         String   @default("Ahmedabad")
+  state        String   @default("Gujarat")
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
+  Customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  Order        Order[]
+
+  @@index([customerId])
+  @@index([pincode])
+}
+
+model CartItem {
+  id         String   @id
+  customerId String
+  menuItemId String
+  quantity   Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime
+  Customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  MenuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, menuItemId])
+  @@index([customerId])
+}
+
+model Category {
+  id          String     @id
+  name        String     @unique
+  slug        String     @unique
+  description String?
+  image       String?
+  sortOrder   Int        @default(0)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime
+  MenuItem    MenuItem[]
+
+  @@index([isActive])
+  @@index([slug])
+}
+
+model Coupon {
+  id             String       @id
+  code           String       @unique
+  description    String?
+  discountType   DiscountType
+  discountValue  Float
+  minOrderAmount Float?
+  maxDiscount    Float?
+  usageLimit     Int?
+  usageCount     Int          @default(0)
+  validFrom      DateTime
+  validUntil     DateTime
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime
+
+  @@index([code])
+  @@index([isActive])
+  @@index([validFrom, validUntil])
+}
+
+model OrderStatusHistory {
+  id        String      @id
+  orderId   String
+  status    OrderStatus
+  notes     String?
+  createdBy String?
+  createdAt DateTime    @default(now())
+  Order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([orderId])
+}
+
+model Review {
+  id          String   @id
+  customerId  String
+  menuItemId  String
+  rating      Int
+  comment     String?
+  isApproved  Boolean  @default(false)
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  Customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  MenuItem    MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, menuItemId])
+  @@index([isPublished])
+  @@index([menuItemId])
+}
+
+model Settings {
+  id        String   @id
+  key       String   @unique
+  value     String
+  updatedAt DateTime
+
+  @@index([key])
 }
 
 enum OrderStatus {
@@ -106,4 +272,27 @@ enum PaymentStatus {
   PAID
   FAILED
   REFUNDED
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum PaymentMethod {
+  RAZORPAY
+  COD
+  UPI
 }

@@ -9,16 +9,16 @@ import AddToCartButton from './AddToCartButton'
 
 export default function CartDrawer() {
   const [isOpen, setIsOpen] = useState(false)
-  const { 
-    items, 
-    removeItem, 
-    updateQuantity, 
-    clearCart, 
-    getTotalItems, 
-    getSubtotal, 
-    getDeliveryFee, 
-    getTax, 
-    getGrandTotal 
+  const {
+    items,
+    removeItem,
+    updateQuantity,
+    clearCart,
+    getTotalItems,
+    getSubtotal,
+    getDeliveryFee,
+    getTax,
+    getGrandTotal
   } = useCartStore()
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export default function CartDrawer() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -57,14 +57,14 @@ export default function CartDrawer() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl z-50 overflow-hidden"
+            className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl z-50 overflow-hidden flex flex-col"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
           >
             {/* Header */}
-            <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white p-4">
+            <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 shrink-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <ShoppingCart className="w-6 h-6" />
@@ -85,7 +85,7 @@ export default function CartDrawer() {
             </div>
 
             {/* Cart Items */}
-            <div className="flex-1 overflow-y-auto p-4" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+            <div className="flex-1 overflow-y-auto p-4">
               {items.length === 0 ? (
                 <div className="text-center py-12">
                   <ShoppingCart className="w-16 h-16 mx-auto text-gray-300 mb-4" />
@@ -109,37 +109,37 @@ export default function CartDrawer() {
                       exit={{ opacity: 0, y: -20 }}
                     >
                       <div className="flex gap-4">
-                        <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
-                          <span className="text-2xl">
-                            {item.category === 'burger' ? '🍔' : 
-                             item.category === 'sandwich' ? '🥪' : 
-                             item.category === 'sides' ? '🍟' : '🥤'}
+                        <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center shrink-0">
+                          <span className="text-3xl">
+                            {item.category === 'burger' ? '🍔' :
+                              item.category === 'sandwich' ? '🥪' :
+                                item.category === 'sides' ? '🍟' : '🥤'}
                           </span>
                         </div>
-                        
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900">{item.name}</h4>
-                          <p className="text-sm text-gray-600 mb-2">{item.description}</p>
-                          
+
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-gray-900 truncate">{item.name}</h4>
+                          <p className="text-sm text-gray-600 mb-2 truncate">{item.description}</p>
+
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                className="p-1 bg-gray-200 hover:bg-gray-300 rounded-full transition-colors"
+                                className="p-1 bg-gray-200 hover:bg-gray-300 rounded-full transition-colors text-gray-700"
                               >
                                 <Minus className="w-4 h-4" />
                               </button>
-                              <span className="font-semibold w-8 text-center">{item.quantity}</span>
+                              <span className="font-semibold w-8 text-center text-gray-900">{item.quantity}</span>
                               <button
                                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                className="p-1 bg-gray-200 hover:bg-gray-300 rounded-full transition-colors"
+                                className="p-1 bg-gray-200 hover:bg-gray-300 rounded-full transition-colors text-gray-700"
                               >
                                 <Plus className="w-4 h-4" />
                               </button>
                             </div>
-                            
+
                             <div className="flex items-center gap-3">
-                              <span className="font-bold text-orange-500">
+                              <span className="font-bold text-orange-600">
                                 <IndianRupee className="w-4 h-4 inline" />
                                 {item.price * item.quantity}
                               </span>
@@ -161,42 +161,42 @@ export default function CartDrawer() {
 
             {/* Footer */}
             {items.length > 0 && (
-              <div className="border-t bg-white p-4">
-                <div className="space-y-2 mb-4">
-                  <div className="flex justify-between text-sm">
+              <div className="border-t bg-white p-6 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+                <div className="space-y-3 mb-6">
+                  <div className="flex justify-between text-sm text-gray-600">
                     <span>Subtotal</span>
-                    <span><IndianRupee className="w-3 h-3 inline" />{subtotal}</span>
+                    <span className="font-semibold text-gray-900"><IndianRupee className="w-3 h-3 inline" />{subtotal}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-gray-600">
                     <span>Delivery Fee</span>
-                    <span className={deliveryFee === 0 ? 'text-green-600' : ''}>
+                    <span className={`font-semibold ${deliveryFee === 0 ? 'text-green-600' : 'text-gray-900'}`}>
                       {deliveryFee === 0 ? 'FREE' : <><IndianRupee className="w-3 h-3 inline" />{deliveryFee}</>}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-gray-600">
                     <span>Tax (5%)</span>
-                    <span><IndianRupee className="w-3 h-3 inline" />{tax}</span>
+                    <span className="font-semibold text-gray-900"><IndianRupee className="w-3 h-3 inline" />{tax}</span>
                   </div>
-                  <div className="flex justify-between font-bold text-lg pt-2 border-t">
-                    <span>Total</span>
-                    <span className="text-orange-500">
-                      <IndianRupee className="w-4 h-4 inline" />{grandTotal}
+                  <div className="flex justify-between font-bold text-lg pt-4 border-t border-gray-100">
+                    <span className="text-gray-900">Total</span>
+                    <span className="text-orange-600 text-xl">
+                      <IndianRupee className="w-5 h-5 inline" />{grandTotal}
                     </span>
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <Button
                     onClick={handleCheckout}
-                    className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold py-3"
+                    className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-bold py-6 text-lg shadow-lg hover:shadow-xl transition-all rounded-xl"
                   >
                     Proceed to Checkout
                   </Button>
-                  
+
                   <Button
                     variant="outline"
                     onClick={() => setIsOpen(false)}
-                    className="w-full"
+                    className="w-full py-6 text-gray-600 hover:text-gray-900 border-gray-200 hover:bg-gray-50 rounded-xl"
                   >
                     Continue Shopping
                   </Button>
