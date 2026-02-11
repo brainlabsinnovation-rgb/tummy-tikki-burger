@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
 import { IndianRupee, Package, Utensils, TrendingUp, Clock, ChevronRight } from 'lucide-react';
 
@@ -6,6 +6,9 @@ export default async function AdminDashboard() {
   // Fetch stats using Supabase
   // Note: If RLS is enabled, these might require a Service Role key or authenticated user.
   // Using public client for now as requested.
+
+  // Using authenticated client to respect RLS policies
+  const supabase = await createClient();
 
   const { count: ordersCount } = await supabase
     .from('Order')

@@ -7,6 +7,7 @@ import { User, Lock, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import { createClient } from '@/utils/supabase/client'
 
 export default function AdminLogin() {
   const router = useRouter()
@@ -14,27 +15,24 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const supabase = createClient()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       })
 
-      const data = await response.json()
-
-      if (response.ok) {
+      if (error) {
+        toast.error(error.message)
+      } else {
         toast.success('Login successful!')
         router.push('/admin/dashboard')
-      } else {
-        toast.error(data.error || 'Invalid credentials')
+        router.refresh()
       }
     } catch (error) {
       toast.error('Login failed. Please try again.')
