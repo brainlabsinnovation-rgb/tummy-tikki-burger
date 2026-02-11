@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+// Version control for cart data - increment this when cart structure changes
+const CART_VERSION = 2;
+
 export interface CartItem {
   id: string;
   name: string;
@@ -15,6 +18,7 @@ export interface CartItem {
 
 interface CartStore {
   items: CartItem[];
+  version: number;
   addItem: (item: Omit<CartItem, 'quantity'>) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -31,11 +35,12 @@ export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
+      version: CART_VERSION,
 
       addItem: (item) => {
         set((state) => {
           const existingItem = state.items.find((i) => i.id === item.id);
-          
+
           if (existingItem) {
             return {
               items: state.items.map((i) =>
@@ -106,6 +111,18 @@ export const useCartStore = create<CartStore>()(
     }),
     {
       name: 'tummy-tikki-cart',
+      version: CART_VERSION,
+      migrate: (persistedState: any, version: number) => {
+        // If the persisted state is from an older version, clear the cart
+        if (version !== CART_VERSION) {
+          console.log(`Migrating cart from version ${version} to ${CART_VERSION} - clearing old data`);
+          return {
+            items: [],
+            version: CART_VERSION,
+          };
+        }
+        return persistedState;
+      },
     }
   )
 );
