@@ -17,6 +17,12 @@ type MenuItemWithCategory = {
   } | null;
 };
 
+const formatImageUrl = (image: string | null) => {
+  if (!image) return null;
+  if (image.startsWith('http')) return image;
+  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/menu-images/${image}`;
+};
+
 export async function GET() {
   try {
     const { data: menuItems, error } = await supabase
@@ -40,7 +46,7 @@ export async function GET() {
     }
 
     if (!menuItems) {
-      return NextResponse.json({ categories: [] });
+      return NextResponse.json({});
     }
 
     // Transform data to group by category slug (old structure expected by frontend)
@@ -59,7 +65,7 @@ export async function GET() {
         description: item.description,
         price: item.price,
         category: categorySlug,
-        image: item.image,
+        image: formatImageUrl(item.image),
         isVeg: item.isVeg,
         isAvailable: item.isAvailable,
       });
