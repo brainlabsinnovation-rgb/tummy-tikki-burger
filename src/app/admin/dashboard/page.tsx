@@ -1,12 +1,13 @@
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
-import { IndianRupee, Package, Utensils, TrendingUp, Clock, ChevronRight } from 'lucide-react';
+import { IndianRupee, Package, Utensils, TrendingUp, Clock, ChevronRight, Settings } from 'lucide-react';
+import OrdersTable from '@/components/admin/OrdersTable';
+import SalesChart from '@/components/admin/SalesChart';
 
 export default async function AdminDashboard() {
-  // Fetch stats using Supabase
-  // Note: If RLS is enabled, these might require a Service Role key or authenticated user.
-  // Using public client for now as requested.
+  const supabase = await createClient();
 
+  // Get total stats
   const { count: ordersCount } = await supabase
     .from('Order')
     .select('*', { count: 'exact', head: true });
@@ -15,7 +16,6 @@ export default async function AdminDashboard() {
     .from('MenuItem')
     .select('*', { count: 'exact', head: true });
 
-  // For revenue, we fetch 'total' of paid orders and sum it up
   const { data: revenueData } = await supabase
     .from('Order')
     .select('total')
@@ -23,12 +23,43 @@ export default async function AdminDashboard() {
 
   const totalRevenue = revenueData?.reduce((acc, order) => acc + (order.total || 0), 0) || 0;
 
-  // Fetch recent orders
+  // Last 7 days sales data
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const { data: weeklyOrders } = await supabase
+    .from('Order')
+    .select('total, createdAt')
+    .gte('createdAt', sevenDaysAgo.toISOString())
+    .eq('paymentStatus', 'PAID');
+
+  // Process data for chart
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return {
+      date: d.toISOString().split('T')[0],
+      day: days[d.getDay()],
+      total: 0
+    };
+  });
+
+  weeklyOrders?.forEach(order => {
+    const orderDate = new Date(order.createdAt).toISOString().split('T')[0];
+    const dayData = last7Days.find(d => d.date === orderDate);
+    if (dayData) {
+      dayData.total += order.total || 0;
+    }
+  });
+
+  const chartData = last7Days.map(({ day, total }) => ({ day, total }));
+
   const { data: recentOrders } = await supabase
     .from('Order')
-    .select('*')
+    .select('*, orderItems:OrderItem(*)')
     .order('createdAt', { ascending: false })
-    .limit(5);
+    .limit(10);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -39,13 +70,22 @@ export default async function AdminDashboard() {
               <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">Admin Dashboard</h1>
               <p className="text-gray-500 mt-2 text-lg">Real-time overview of Tummy Tikki Burger</p>
             </div>
-            <Link
-              href="/"
-              className="px-6 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg hover:shadow-gray-200 flex items-center gap-2"
-            >
-              Back to Website
-              <ChevronRight className="w-4 h-4" />
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link
+                href="/admin/menu"
+                className="px-6 py-3 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 transition-all shadow-lg hover:shadow-orange-200 flex items-center gap-2"
+              >
+                <Settings className="w-4 h-4" />
+                Manage Menu
+              </Link>
+              <Link
+                href="/"
+                className="px-6 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg hover:shadow-gray-200 flex items-center gap-2"
+              >
+                Back to Website
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
@@ -89,66 +129,44 @@ export default async function AdminDashboard() {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+            <div className="lg:col-span-2">
+              <SalesChart data={chartData} />
+            </div>
+
+            <div className="bg-gradient-to-br from-gray-900 to-black rounded-[2rem] p-8 text-white flex flex-col justify-between relative overflow-hidden shadow-2xl shadow-gray-200">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500 rounded-full blur-[100px] opacity-20 -mr-32 -mt-32" />
+              <div className="relative z-10">
+                <h3 className="text-xl font-black uppercase tracking-tight mb-2">Pro Insights</h3>
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Growth Recommendation</p>
+
+                <div className="mt-8 space-y-4">
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                    <p className="text-orange-400 text-[10px] font-black uppercase tracking-widest mb-1">Peak Day</p>
+                    <p className="font-bold text-lg">{chartData.sort((a, b) => b.total - a.total)[0]?.day || 'N/A'}</p>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                    <p className="text-blue-400 text-[10px] font-black uppercase tracking-widest mb-1">Avg Ticket</p>
+                    <p className="font-bold text-lg">₹{ordersCount ? Math.round(totalRevenue / ordersCount) : 0}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 relative z-10">
+                <button className="w-full py-4 bg-white text-gray-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all shadow-xl">
+                  View Full Report
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Recent Orders Table */}
           <div className="mt-12">
             <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
               <Clock className="w-6 h-6 text-orange-500" />
-              Recent Orders
+              Manage Orders
             </h2>
-            <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Order #</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Customer</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Payment</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {recentOrders && recentOrders.length > 0 ? (
-                    recentOrders.map((order: any) => (
-                      <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <span className="font-mono font-bold text-orange-600">{order.orderNumber}</span>
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            {new Date(order.createdAt).toLocaleDateString()}
-                          </p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="font-bold text-gray-900">{order.deliveryName}</p>
-                          <p className="text-xs text-gray-500">{order.deliveryPhone}</p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${order.status === 'DELIVERED' ? 'bg-green-100 text-green-700' :
-                            order.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
-                              'bg-orange-100 text-orange-700'
-                            }`}>
-                            {order.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${order.paymentStatus === 'PAID' ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-700'
-                            }`}>
-                            {order.paymentStatus}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <p className="font-black text-gray-900">₹{order.total}</p>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-gray-500 font-medium">
-                        No orders found yet.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <OrdersTable orders={recentOrders || []} />
           </div>
         </div>
       </div>
