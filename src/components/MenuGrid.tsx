@@ -157,23 +157,28 @@ export default function MenuGrid() {
     }
   }
 
-  const menuCategories = [
-    {
-      title: "🍔 Burgers",
-      key: 'burger',
-      items: menuData.burger || []
-    },
-    {
-      title: "🥪 Sandwiches & Sides",
-      key: 'sandwich',
-      items: [...(menuData.sandwich || []), ...(menuData.sides || [])]
-    },
-    {
-      title: "🥤 Beverages",
-      key: 'beverage',
-      items: menuData.beverage || []
-    }
-  ]
+  // Dynamic category mapping with fallback icons
+  const getCategoryTitle = (slug: string) => {
+    const icons: Record<string, string> = {
+      burger: "🍔",
+      sandwich: "🥪",
+      sides: "🍟",
+      beverage: "🥤",
+      dessert: "🍰",
+      deals: "🏷️",
+      pizza: "🍕"
+    };
+    const icon = icons[slug.toLowerCase()] || "🍴";
+    // Capitalize slug for title
+    const title = slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    return `${icon} ${title}`;
+  };
+
+  const menuCategories = Object.keys(menuData).map(slug => ({
+    title: getCategoryTitle(slug),
+    key: slug,
+    items: menuData[slug] || []
+  }));
 
   if (loading) {
     return (
@@ -221,73 +226,73 @@ export default function MenuGrid() {
             >
               {category.title}
             </motion.h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {category.items.map((item: MenuItem, itemIndex: number) => (
                 <motion.div
                   key={item.id}
-                  className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group"
                   initial={{ y: 50, opacity: 0 }}
                   whileInView={{ y: 0, opacity: 1 }}
                   transition={{ duration: 0.6, delay: (categoryIndex * 0.1) + (itemIndex * 0.1) }}
                   viewport={{ once: true }}
                   whileHover={{ y: -5 }}
                 >
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-3">
-                      <h4 className="text-lg font-bold text-gray-900 flex-1">
-                        {item.name}
-                      </h4>
-                      {item.id === 'regular-burger' && (
-                        <Badge className="bg-green-500 text-white text-xs ml-2">
-                          Most Popular
-                        </Badge>
+                  <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group">
+                    <div className="aspect-[4/3] w-full bg-gray-100 overflow-hidden relative">
+                      {item.image ? (
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <span className="text-4xl">🍔</span>
+                        </div>
                       )}
-                      {item.id === 'cheesy-burger' && (
-                        <Badge className="bg-yellow-500 text-white text-xs ml-2">
-                          Cheese Lovers
-                        </Badge>
-                      )}
-                      {item.id === 'paneer-burger' && (
-                        <Badge className="bg-purple-500 text-white text-xs ml-2">
-                          Premium
-                        </Badge>
-                      )}
-                      {item.id === 'grilled-sandwich' && (
-                        <Badge className="bg-blue-500 text-white text-xs ml-2">
-                          Cheapest
-                        </Badge>
-                      )}
-                      {item.id === 'jumbo-sandwich' && (
-                        <Badge className="bg-green-600 text-white text-xs ml-2">
-                          Healthy
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    <p className="text-gray-600 text-sm mb-4 leading-relaxed">
-                      {item.description}
-                    </p>
-                    
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-2xl font-bold text-orange-500">
-                        Rs {item.price}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        {item.isVeg && (
-                          <span className="text-green-600 text-xs">🌱</span>
+                      <div className="absolute top-4 right-4 flex flex-col gap-2">
+                        {item.id === 'regular-burger' && (
+                          <Badge className="bg-green-500/90 backdrop-blur-sm text-white border-transparent">
+                            Popular
+                          </Badge>
                         )}
+                        {item.id === 'paneer-burger' && (
+                          <Badge className="bg-purple-500/90 backdrop-blur-sm text-white border-transparent">
+                            Premium
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm p-1.5 rounded-lg shadow-sm">
+                        <div className={`w-3 h-3 rounded-full border ${item.isVeg
+                            ? 'bg-green-600 border-green-700'
+                            : 'bg-red-600 border-red-700'
+                          }`}></div>
                       </div>
                     </div>
 
-                    <AddToCartButton 
-                      item={item}
-                      size="sm"
-                      className="w-full"
-                    />
+                    <div className="p-6">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-xl font-bold text-gray-900 group-hover:text-orange-500 transition-colors">
+                          {item.name}
+                        </h4>
+                      </div>
+
+                      <p className="text-gray-600 text-sm mb-6 leading-relaxed line-clamp-2 h-10">
+                        {item.description}
+                      </p>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-2xl font-black text-gray-900">
+                          ₹{item.price}
+                        </span>
+                        <AddToCartButton
+                          item={item}
+                          size="sm"
+                        />
+                      </div>
+                    </div>
                   </div>
-                </motion.div>
-              ))}
+                </motion.div>))}
             </div>
           </div>
         ))}
