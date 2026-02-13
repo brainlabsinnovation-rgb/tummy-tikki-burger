@@ -1,33 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
+    const body = await req.json();
+    console.log('Verify payment body:', body);
     const {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
-      orderId
-    } = await req.json();
+      orderId // Our internal order ID
+    } = body;
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
-    if (!keySecret) {
-      return NextResponse.json(
-        { error: 'Razorpay is not configured' },
-        { status: 500 }
-      );
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      console.error('RAZORPAY_KEY_SECRET is not set');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
 
-    const sign = razorpay_order_id + '|' + razorpay_payment_id;
-    const expectedSign = crypto
-      .createHmac('sha256', keySecret)
-      .update(sign.toString())
+    const generated_signature = crypto
+      .createHmac('sha256', secret)
+      .update(razorpay_order_id + '|' + razorpay_payment_id)
       .digest('hex');
 
-    if (razorpay_signature === expectedSign) {
-      // Update order in database
-      const { error } = await supabase
+    if (generated_signature === razorpay_signature) {
+      // Payment successful
+
+      // Update order in database using Supabase Admin
+      const { data, error } = await supabaseAdmin
         .from('Order')
         .update({
           paymentStatus: 'PAID',
@@ -36,30 +37,46 @@ export async function POST(req: NextRequest) {
           razorpayPaymentId: razorpay_payment_id,
           razorpaySignature: razorpay_signature,
           updatedAt: new Date().toISOString(),
+          confirmedAt: new Date().toISOString(),
         })
-        .eq('id', orderId);
+        .eq('id', orderId)
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating order status:', error);
+        // Payment verified but DB update failed
+        return NextResponse.json(
+          { error: 'Payment verified but order update failed', details: error.message },
+          { status: 500 }
+        );
+      }
 
-      return NextResponse.json({ verified: true });
+      return NextResponse.json({
+        verified: true,
+        success: true,
+        message: 'Payment verified successfully'
+      });
     } else {
-      // Update payment as failed
-      const { error } = await supabase
+      // Payment verification failed
+      // Optional: Update order status to FAILED
+      await supabaseAdmin
         .from('Order')
         .update({
           paymentStatus: 'FAILED',
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         })
         .eq('id', orderId);
 
-      if (error) throw error;
-
-      return NextResponse.json({ verified: false }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Payment verification failed' },
+        { status: 400 }
+      );
     }
-  } catch (error) {
-    console.error('Payment verification failed:', error);
+  } catch (error: any) {
+    console.error('Error verifying payment:', error);
     return NextResponse.json(
-      { error: 'Verification failed' },
+      { error: error.message || 'Internal Server Error' },
       { status: 500 }
     );
   }
