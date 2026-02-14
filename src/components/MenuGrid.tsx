@@ -5,13 +5,19 @@ import { Badge } from '@/components/ui/badge'
 import { useState, useEffect } from 'react'
 import AddToCartButton from './AddToCartButton'
 import { MenuGridSkeleton } from './ui/Skeleton'
+import { CustomizationOption } from '@/lib/customizations'
+import { useCartStore } from '@/store/cartStore'
+import toast from 'react-hot-toast'
+import CustomizationModal from './CustomizationModal'
 
 interface MenuItem {
   id: string
   name: string
   description: string
   price: number
-  category: string
+  categoryId: string
+  categorySlug: string
+  category?: string
   image: string
   isVeg: boolean
   isAvailable: boolean
@@ -23,8 +29,11 @@ interface MenuData {
 
 export default function MenuGrid() {
   const [menuData, setMenuData] = useState<MenuData>({})
+  const [customizations, setCustomizations] = useState<CustomizationOption[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedItem, setSelectedItem] = useState<{ item: MenuItem; customizations: CustomizationOption[] } | null>(null)
+  const { addItem } = useCartStore()
 
   const fallbackMenuData: MenuData = {
     burger: [
@@ -33,7 +42,8 @@ export default function MenuGrid() {
         name: 'Regular Tummy Tikki Burger',
         description: 'Our signature homemade tikki burger with fresh veggies',
         price: 89,
-        category: 'burger',
+        categoryId: 'cat_burger',
+        categorySlug: 'burger',
         image: '',
         isVeg: true,
         isAvailable: true
@@ -43,7 +53,8 @@ export default function MenuGrid() {
         name: 'Cheesy Tummy Tikki Burger',
         description: 'Loaded with cheese for cheese lovers',
         price: 109,
-        category: 'burger',
+        categoryId: 'cat_burger',
+        categorySlug: 'burger',
         image: '',
         isVeg: true,
         isAvailable: true
@@ -53,7 +64,8 @@ export default function MenuGrid() {
         name: 'Paneer with Cheese Fully Loaded Burger',
         description: 'Premium paneer patty with extra cheese',
         price: 143,
-        category: 'burger',
+        categoryId: 'cat_burger',
+        categorySlug: 'burger',
         image: '',
         isVeg: true,
         isAvailable: true
@@ -65,7 +77,8 @@ export default function MenuGrid() {
         name: 'Butter Grilled Sandwich',
         description: 'Classic grilled sandwich with butter',
         price: 35,
-        category: 'sandwich',
+        categoryId: 'cat_sandwich',
+        categorySlug: 'sandwich',
         image: '',
         isVeg: true,
         isAvailable: true
@@ -75,61 +88,8 @@ export default function MenuGrid() {
         name: 'Jumbo Wheat Bread Sandwich',
         description: 'Healthy option with fresh veggies and melted cheese',
         price: 120,
-        category: 'sandwich',
-        image: '',
-        isVeg: true,
-        isAvailable: true
-      }
-    ],
-    sides: [
-      {
-        id: 'french-fries',
-        name: 'French Fries',
-        description: 'Crispy golden french fries',
-        price: 60,
-        category: 'sides',
-        image: '',
-        isVeg: true,
-        isAvailable: true
-      },
-      {
-        id: 'cheese-fries',
-        name: 'Cheese Fries',
-        description: 'French fries loaded with melted cheese',
-        price: 80,
-        category: 'sides',
-        image: '',
-        isVeg: true,
-        isAvailable: true
-      }
-    ],
-    beverage: [
-      {
-        id: 'cold-coffee',
-        name: 'Cold Coffee',
-        description: 'Refreshing cold coffee',
-        price: 70,
-        category: 'beverage',
-        image: '',
-        isVeg: true,
-        isAvailable: true
-      },
-      {
-        id: 'lime-soda',
-        name: 'Fresh Lime Soda',
-        description: 'Fresh and tangy lime soda',
-        price: 50,
-        category: 'beverage',
-        image: '',
-        isVeg: true,
-        isAvailable: true
-      },
-      {
-        id: 'masala-chaas',
-        name: 'Masala Chaas',
-        description: 'Traditional spiced buttermilk',
-        price: 40,
-        category: 'beverage',
+        categoryId: 'cat_sandwich',
+        categorySlug: 'sandwich',
         image: '',
         isVeg: true,
         isAvailable: true
@@ -143,12 +103,20 @@ export default function MenuGrid() {
 
   const fetchMenu = async () => {
     try {
-      const response = await fetch('/api/menu')
-      if (!response.ok) {
-        throw new Error('Failed to load menu from API')
+      const [menuRes, custRes] = await Promise.all([
+        fetch('/api/menu'),
+        fetch('/api/admin/customizations')
+      ])
+
+      if (!menuRes.ok || !custRes.ok) {
+        throw new Error('Failed to load menu or customizations')
       }
-      const data = await response.json()
-      setMenuData(data)
+
+      const mData = await menuRes.json()
+      const cData = await custRes.json()
+
+      setMenuData(mData)
+      setCustomizations(cData)
     } catch (error) {
       console.error('Error fetching menu:', error)
       setError('Menu service unavailable. Showing default menu.')
@@ -158,28 +126,61 @@ export default function MenuGrid() {
     }
   }
 
-  // Dynamic category mapping with fallback icons
+  const handleItemClick = (item: MenuItem, customizationOptions: CustomizationOption[]) => {
+    if (!item.isAvailable) return;
+
+    if (customizationOptions.length > 0) {
+      setSelectedItem({
+        item: { ...item, category: item.categorySlug || 'burger' },
+        customizations: customizationOptions
+      });
+    }
+  }
+
+  const handleConfirmCustomization = (selected: any[]) => {
+    if (selectedItem) {
+      addItem(selectedItem.item as any, selected);
+      toast.success(`${selectedItem.item.name} added to cart! 🍔`, {
+        position: 'top-center',
+        duration: 2000,
+        style: {
+          background: '#FF5722',
+          color: 'white',
+        },
+      });
+      setSelectedItem(null);
+    }
+  }
+
   const getCategoryTitle = (slug: string) => {
     const icons: Record<string, string> = {
       burger: "🍔",
       sandwich: "🥪",
       sides: "🍟",
       beverage: "🥤",
+      beverages: "🥤",
       dessert: "🍰",
       deals: "🏷️",
       pizza: "🍕"
     };
     const icon = icons[slug.toLowerCase()] || "🍴";
-    // Capitalize slug for title
     const title = slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     return `${icon} ${title}`;
   };
 
-  const menuCategories = Object.keys(menuData).map(slug => ({
-    title: getCategoryTitle(slug),
-    key: slug,
-    items: menuData[slug] || []
-  }));
+  const menuCategories = Object.keys(menuData).map(slug => {
+    const items = menuData[slug] || [];
+    const categoryId = items[0]?.categoryId;
+    const catCustomizations = customizations.filter(c => c.categoryId === categoryId);
+
+    return {
+      title: getCategoryTitle(slug),
+      key: slug,
+      items,
+      customizationOptions: catCustomizations
+    };
+  });
+
   if (loading) {
     return (
       <section id="menu" className="py-16 md:py-20 bg-gray-50">
@@ -239,7 +240,10 @@ export default function MenuGrid() {
                   viewport={{ once: true }}
                   whileHover={{ y: -5 }}
                 >
-                  <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group">
+                  <div
+                    onClick={() => handleItemClick(item, category.customizationOptions)}
+                    className={`bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group h-full flex flex-col ${item.isAvailable ? 'cursor-pointer' : ''}`}
+                  >
                     <div className="aspect-[4/3] w-full bg-gray-100 overflow-hidden relative">
                       {item.image ? (
                         <img
@@ -263,11 +267,6 @@ export default function MenuGrid() {
                             Popular
                           </Badge>
                         )}
-                        {item.id === 'paneer-burger' && item.isAvailable && (
-                          <Badge className="bg-purple-500/90 backdrop-blur-sm text-white border-transparent">
-                            Premium
-                          </Badge>
-                        )}
                       </div>
                       <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm p-1.5 rounded-lg shadow-sm">
                         <div className={`w-3 h-3 rounded-full border ${item.isVeg
@@ -277,29 +276,36 @@ export default function MenuGrid() {
                       </div>
                     </div>
 
-                    <div className="p-6">
+                    <div className="p-6 flex flex-col flex-grow">
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="text-xl font-bold text-gray-900 group-hover:text-orange-500 transition-colors">
                           {item.name}
                         </h4>
                       </div>
 
-                      <p className="text-gray-600 text-sm mb-6 leading-relaxed line-clamp-2 h-10">
+                      <p className="text-gray-600 text-sm mb-6 leading-relaxed line-clamp-2 h-10 flex-grow">
                         {item.description}
                       </p>
 
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-50">
                         <span className="text-2xl font-black text-gray-900">
                           ₹{item.price}
                         </span>
-                        <AddToCartButton
-                          item={item}
-                          size="sm"
-                        />
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <AddToCartButton
+                            item={{
+                              ...item,
+                              category: item.categorySlug || category.key
+                            }}
+                            size="sm"
+                            availableCustomizations={category.customizationOptions}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
-                </motion.div>))}
+                </motion.div>
+              ))}
             </div>
           </div>
         ))}
@@ -323,6 +329,16 @@ export default function MenuGrid() {
           </div>
         </motion.div>
       </div>
+
+      {selectedItem && (
+        <CustomizationModal
+          isOpen={!!selectedItem}
+          onCloseAction={() => setSelectedItem(null)}
+          onConfirmAction={handleConfirmCustomization}
+          item={selectedItem.item as any}
+          options={selectedItem.customizations}
+        />
+      )}
     </section>
   )
 }

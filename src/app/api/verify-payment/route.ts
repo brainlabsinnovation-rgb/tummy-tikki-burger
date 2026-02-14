@@ -5,12 +5,11 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    console.log('Verify payment body:', body);
     const {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
-      orderId // Our internal order ID
+      orderId
     } = body;
 
     const secret = process.env.RAZORPAY_KEY_SECRET;
@@ -27,8 +26,8 @@ export async function POST(req: Request) {
     if (generated_signature === razorpay_signature) {
       // Payment successful
 
-      // Update order in database using Supabase Admin
-      const { data, error } = await supabaseAdmin
+      // Update order and get order data to check for coupon code
+      const { data: order, error } = await supabaseAdmin
         .from('Order')
         .update({
           paymentStatus: 'PAID',
@@ -40,16 +39,23 @@ export async function POST(req: Request) {
           confirmedAt: new Date().toISOString(),
         })
         .eq('id', orderId)
-        .select()
+        .select('couponCode')
         .single();
 
       if (error) {
         console.error('Error updating order status:', error);
-        // Payment verified but DB update failed
         return NextResponse.json(
           { error: 'Payment verified but order update failed', details: error.message },
           { status: 500 }
         );
+      }
+
+      // If a coupon was used, increment its usage count via RPC or direct update
+      // Supabase JS doesn't have an atomic increment easily in-built without RPC
+      // But we can do it via a quick fetch-then-update or just use an SQL statement
+      if (order?.couponCode) {
+        // We'll use a raw increment update for reliability
+        await supabaseAdmin.rpc('increment_coupon_usage', { code_param: order.couponCode });
       }
 
       return NextResponse.json({
@@ -58,8 +64,6 @@ export async function POST(req: Request) {
         message: 'Payment verified successfully'
       });
     } else {
-      // Payment verification failed
-      // Optional: Update order status to FAILED
       await supabaseAdmin
         .from('Order')
         .update({

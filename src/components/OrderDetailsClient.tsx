@@ -202,7 +202,18 @@ export default function OrderDetailsClient({ order, success: initialSuccess }: O
                                     <div key={item.id} className="flex justify-between items-center pb-3 border-b last:border-b-0">
                                         <div className="flex-1">
                                             <h4 className="font-medium text-gray-900">{item.itemName}</h4>
-                                            {/* item_description might not be available in standard OrderItem schema, check usage */}
+
+                                            {/* Customizations Display */}
+                                            {(item as any).customizations && (item as any).customizations.length > 0 && (
+                                                <div className="flex flex-wrap gap-1 mt-1 mb-1">
+                                                    {(item as any).customizations.map((c: any) => (
+                                                        <span key={c.id} className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded border border-orange-100 font-medium">
+                                                            {c.type === 'removal' ? 'No ' : ''}{c.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+
                                             <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
                                         </div>
                                         <span className="font-semibold text-orange-500">
