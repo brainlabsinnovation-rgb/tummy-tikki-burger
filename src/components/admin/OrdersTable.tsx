@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, Fragment } from 'react';
-import { CheckCircle, XCircle, Package, Truck, Check, ChevronDown, ChevronUp, MapPin, Phone, User, ShoppingBag, TrendingUp } from 'lucide-react';
+import { CheckCircle, XCircle, Package, Truck, Check, ChevronDown, ChevronUp, MapPin, Phone, User, ShoppingBag, TrendingUp, Tag } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface OrderItem {
@@ -10,6 +10,7 @@ interface OrderItem {
     quantity: number;
     price: number;
     subtotal: number;
+    customizations?: any[];
 }
 
 interface Order {
@@ -28,6 +29,8 @@ interface Order {
     status: string;
     paymentStatus: string;
     total: number;
+    discount?: number;
+    couponCode?: string;
     orderItems?: OrderItem[];
 }
 
@@ -192,6 +195,11 @@ export default function OrdersTable({ orders: initialOrders }: { orders: Order[]
                                         </td>
                                         <td className="px-6 py-6 text-right">
                                             <p className="font-black text-gray-900 text-lg">₹{order.total}</p>
+                                            {order.discount !== undefined && order.discount > 0 && (
+                                                <p className="text-[10px] font-bold text-green-600 uppercase tracking-tighter">
+                                                    -₹{order.discount} saved
+                                                </p>
+                                            )}
                                         </td>
                                     </tr>
                                     {expandedOrder === order.id && (
@@ -213,6 +221,15 @@ export default function OrdersTable({ orders: initialOrders }: { orders: Order[]
                                                                         </div>
                                                                         <div>
                                                                             <p className="font-bold text-gray-900 text-sm">{item.itemName}</p>
+                                                                            {item.customizations && item.customizations.length > 0 && (
+                                                                                <div className="flex flex-wrap gap-1 mt-1 mb-1">
+                                                                                    {item.customizations.map((c: any) => (
+                                                                                        <span key={c.id} className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-black uppercase tracking-wider">
+                                                                                            {c.type === 'removal' ? 'No ' : ''}{c.name}
+                                                                                        </span>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
                                                                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">₹{item.price} per unit</p>
                                                                         </div>
                                                                     </div>
@@ -220,6 +237,16 @@ export default function OrdersTable({ orders: initialOrders }: { orders: Order[]
                                                                 </div>
                                                             ))}
                                                         </div>
+
+                                                        {order.couponCode && (
+                                                            <div className="mt-6 p-4 bg-green-50 rounded-2xl border border-green-100 flex items-center justify-between">
+                                                                <div className="flex items-center gap-3">
+                                                                    <Tag className="w-4 h-4 text-green-600" />
+                                                                    <span className="text-[10px] font-black text-green-700 uppercase tracking-widest">Coupon Used: {order.couponCode}</span>
+                                                                </div>
+                                                                <span className="font-black text-green-700 text-sm">-₹{order.discount}</span>
+                                                            </div>
+                                                        )}
                                                     </div>
 
                                                     {/* Delivery & Customer Info */}

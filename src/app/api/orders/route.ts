@@ -10,12 +10,12 @@ export async function POST(req: Request) {
       subtotal,
       deliveryFee,
       tax,
+      discountAmount,
+      couponCode,
       total
     } = body;
 
-    // 1. Create or update customer using supabase upsert
     // 1. Create or update customer
-    // Check if customer exists
     let { data: customer, error: fetchError } = await supabaseAdmin
       .from('Customer')
       .select('id')
@@ -86,7 +86,9 @@ export async function POST(req: Request) {
         deliveryFee: deliveryFee,
         tax: tax,
         total: total,
-        discount: 0,
+        discount: discountAmount || 0,
+        couponCode: couponCode || null,
+        discountAmount: discountAmount || 0,
         paymentStatus: 'PENDING',
         status: 'PENDING',
         paymentMethod: 'RAZORPAY',
@@ -109,6 +111,7 @@ export async function POST(req: Request) {
       menuItemId: item.id,
       itemName: item.name,
       itemImage: item.image || null,
+      customizations: item.customizations || [],
       quantity: item.quantity,
       price: item.price,
       subtotal: item.price * item.quantity,
@@ -120,8 +123,6 @@ export async function POST(req: Request) {
 
     if (itemsError) {
       console.error('Order items insert error:', itemsError);
-      // Ideally rollback order/customer here, but Supabase JS doesn't support transactions easily without RPC.
-      // Order created but items failed.
       throw new Error(itemsError.message || 'Failed to create order items');
     }
 
@@ -149,12 +150,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ orders: [] });
     }
 
-    // Since we need to join nested relations (Order -> OrderItem, Order -> Customer),
-    // Supabase supports this via select().
-    // However, filtering by nested relation (Order via Customer.phone) needs specific syntax.
-    // '*, orderItems:OrderItem(*), customer:Customer!inner(*)'
-    // !inner is needed to filter by customer phone.
-
     const { data: orders, error } = await supabaseAdmin
       .from('Order')
       .select('*, orderItems:OrderItem(*), customer:Customer!inner(phone)')
@@ -166,25 +161,11 @@ export async function GET(req: Request) {
       throw error;
     }
 
-    // Transform for frontend compatibility if needed
-    // The previous implementation mapped `itemName` -> `item_name` but `supabase` returns columns as is.
-    // If the db column is `itemName` (camelCase) or `item_name` (snake_case)?
-    // Prisma schema said `itemName String`. Supabase usually lowercases unless quoted.
-    // Assuming Supabase columns follow the Prisma migration: "itemName".
-    // Frontend expects `item_name` maybe?
-    // Let's check `src/app/orders/[id]/page.tsx`. It uses `item.itemName`.
-    // Wait, the previous `GET` implementation had:
-    // `item_name: item.itemName` map.
-    // Let's preserve that mapping to be safe.
-
     const formattedOrders = orders?.map((order: any) => ({
       ...order,
       order_items: order.orderItems?.map((item: any) => ({
         ...item,
-        // If DB column is camelCase "itemName", Supabase returns "itemName".
-        // Frontend might expect snake_case "item_name" based on previous code.
         item_name: item.itemName || item.item_name,
-        // fallback just in case
       })) || [],
     })) || [];
 
