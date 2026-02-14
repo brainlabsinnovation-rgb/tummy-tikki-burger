@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, X, Check, Loader2, FolderOpen } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Check, Loader2, FolderOpen, Power, PowerOff } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface Category {
     id: string;
@@ -106,7 +107,8 @@ export default function CategoryManager() {
     };
 
     const handleToggleAvailability = async (categoryId: string, name: string, isAvailable: boolean) => {
-        if (!confirm(`Mark all items in "${name}" as ${isAvailable ? 'AVAILABLE' : 'OUT OF STOCK'}?`)) return;
+        const action = isAvailable ? 'ENABLE' : 'DISABLE';
+        if (!confirm(`Are you sure you want to ${action} all items in "${name}"?`)) return;
 
         setActionLoading(`toggle-${categoryId}`);
         try {
@@ -117,14 +119,21 @@ export default function CategoryManager() {
             });
 
             if (res.ok) {
-                // Trigger a toast or simple alert for feedback
-                alert(`All items in ${name} are now ${isAvailable ? 'available' : 'unavailable'}.`);
+                toast.success(`Success! All items in ${name} are now ${isAvailable ? 'available' : 'hidden'}.`, {
+                    icon: isAvailable ? '✅' : '🚫',
+                    style: {
+                        borderRadius: '15px',
+                        background: '#333',
+                        color: '#fff',
+                        fontWeight: 'bold'
+                    },
+                });
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to update availability');
+                toast.error(data.error || 'Failed to update availability');
             }
         } catch (error) {
-            alert('Something went wrong');
+            toast.error('Something went wrong');
         } finally {
             setActionLoading(null);
         }
@@ -234,16 +243,18 @@ export default function CategoryManager() {
                                     <button
                                         onClick={() => handleToggleAvailability(category.id, category.name, true)}
                                         disabled={actionLoading === `toggle-${category.id}`}
-                                        className="flex-1 py-1.5 bg-green-50 text-green-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition-all disabled:opacity-50"
+                                        className="flex-1 py-2 bg-green-50 text-green-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
                                     >
-                                        {actionLoading === `toggle-${category.id}` ? '...' : 'Enable All'}
+                                        {actionLoading === `toggle-${category.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <Power className="w-3 h-3" />}
+                                        {actionLoading === `toggle-${category.id}` ? 'Updating' : 'Enable All'}
                                     </button>
                                     <button
                                         onClick={() => handleToggleAvailability(category.id, category.name, false)}
                                         disabled={actionLoading === `toggle-${category.id}`}
-                                        className="flex-1 py-1.5 bg-red-50 text-red-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all disabled:opacity-50"
+                                        className="flex-1 py-2 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
                                     >
-                                        {actionLoading === `toggle-${category.id}` ? '...' : 'Disable All'}
+                                        {actionLoading === `toggle-${category.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <PowerOff className="w-3 h-3" />}
+                                        {actionLoading === `toggle-${category.id}` ? 'Updating' : 'Disable All'}
                                     </button>
                                 </div>
                             </>

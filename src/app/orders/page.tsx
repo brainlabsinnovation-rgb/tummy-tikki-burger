@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { Search, Calendar, Clock, IndianRupee, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { OrderHistorySkeleton } from '@/components/ui/Skeleton'
 
 interface Order {
   id: string
@@ -115,7 +116,13 @@ export default function OrdersPage() {
         </motion.div>
 
         {/* Orders List */}
-        {searched && (
+        {loading && (
+          <div className="max-w-4xl mx-auto mt-8">
+            <OrderHistorySkeleton />
+          </div>
+        )}
+
+        {searched && !loading && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -137,7 +144,7 @@ export default function OrdersPage() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-4 max-w-4xl mx-auto">
                 <h2 className="text-xl font-bold text-gray-900 mb-4">
                   Found {orders.length} order{orders.length > 1 ? 's' : ''}
                 </h2>
