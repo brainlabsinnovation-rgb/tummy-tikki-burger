@@ -1,4 +1,4 @@
-import { sendOrderConfirmation } from './src/lib/mail';
+import { sendOrderConfirmation } from '../src/lib/mail';
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
