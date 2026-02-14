@@ -65,6 +65,8 @@ export async function GET() {
         description: item.description,
         price: item.price,
         category: categorySlug,
+        categorySlug: categorySlug,
+        categoryId: item.categoryId,
         image: formatImageUrl(item.image),
         isVeg: item.isVeg,
         isAvailable: item.isAvailable,
