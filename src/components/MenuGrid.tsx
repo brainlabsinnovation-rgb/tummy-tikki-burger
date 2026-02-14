@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/badge'
 import { useState, useEffect } from 'react'
 import AddToCartButton from './AddToCartButton'
+import { MenuGridSkeleton } from './ui/Skeleton'
 
 interface MenuItem {
   id: string
@@ -179,15 +180,16 @@ export default function MenuGrid() {
     key: slug,
     items: menuData[slug] || []
   }));
-
   if (loading) {
     return (
       <section id="menu" className="py-16 md:py-20 bg-gray-50">
         <div className="container mx-auto px-4">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading delicious menu...</p>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 opacity-50">
+              Loading our <span className="text-orange-500">Delicious</span> Menu...
+            </h2>
           </div>
+          <MenuGridSkeleton />
         </div>
       </section>
     )
@@ -243,20 +245,25 @@ export default function MenuGrid() {
                         <img
                           src={item.image}
                           alt={item.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                          className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ${!item.isAvailable ? 'grayscale opacity-60' : ''}`}
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        <div className={`w-full h-full flex items-center justify-center text-gray-400 ${!item.isAvailable ? 'grayscale opacity-60' : ''}`}>
                           <span className="text-4xl">🍔</span>
                         </div>
                       )}
                       <div className="absolute top-4 right-4 flex flex-col gap-2">
-                        {item.id === 'regular-burger' && (
+                        {!item.isAvailable && (
+                          <Badge className="bg-red-600/90 backdrop-blur-sm text-white border-transparent animate-pulse">
+                            Sold Out
+                          </Badge>
+                        )}
+                        {item.id === 'regular-burger' && item.isAvailable && (
                           <Badge className="bg-green-500/90 backdrop-blur-sm text-white border-transparent">
                             Popular
                           </Badge>
                         )}
-                        {item.id === 'paneer-burger' && (
+                        {item.id === 'paneer-burger' && item.isAvailable && (
                           <Badge className="bg-purple-500/90 backdrop-blur-sm text-white border-transparent">
                             Premium
                           </Badge>
@@ -264,8 +271,8 @@ export default function MenuGrid() {
                       </div>
                       <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm p-1.5 rounded-lg shadow-sm">
                         <div className={`w-3 h-3 rounded-full border ${item.isVeg
-                            ? 'bg-green-600 border-green-700'
-                            : 'bg-red-600 border-red-700'
+                          ? 'bg-green-600 border-green-700'
+                          : 'bg-red-600 border-red-700'
                           }`}></div>
                       </div>
                     </div>
