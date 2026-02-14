@@ -1,6 +1,6 @@
 'use client'
 
-import { Plus, ShoppingCart } from 'lucide-react'
+import { Plus, ShoppingCart, PowerOff } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
@@ -50,14 +50,23 @@ export default function AddToCartButton({ item, size = 'md', className = '' }: A
   return (
     <motion.button
       onClick={handleAddToCart}
-      className={`bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-full transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl ${sizeClasses[size]} ${className}`}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
+      className={`${item.isAvailable ? 'bg-orange-500 hover:bg-orange-600' : 'bg-gray-400 cursor-not-allowed'} text-white font-semibold rounded-full transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl ${sizeClasses[size]} ${className}`}
+      whileHover={item.isAvailable ? { scale: 1.05 } : {}}
+      whileTap={item.isAvailable ? { scale: 0.95 } : {}}
       disabled={!item.isAvailable}
     >
-      <ShoppingCart className={iconSizes[size]} />
-      <span>Add to Cart</span>
-      <Plus className={iconSizes[size]} />
+      {item.isAvailable ? (
+        <>
+          <ShoppingCart className={iconSizes[size]} />
+          <span>Add to Cart</span>
+          <Plus className={iconSizes[size]} />
+        </>
+      ) : (
+        <>
+          <PowerOff className={iconSizes[size]} />
+          <span>Sold Out</span>
+        </>
+      )}
     </motion.button>
   )
 }

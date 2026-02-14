@@ -83,6 +83,19 @@ export async function POST(req: NextRequest) {
             console.log(`   - Status: ${order.status}`);
             console.log(`   - Payment Status: ${order.paymentStatus}`);
 
+            // Fetch order items for the confirmation email
+            const { data: orderWithItems } = await supabaseAdmin
+                .from('Order')
+                .select('*, orderItems:OrderItem(*)')
+                .eq('id', order.id)
+                .single();
+
+            // Trigger Email Notification (Non-blocking)
+            if (orderWithItems) {
+                const { sendOrderConfirmation } = await import('@/lib/mail');
+                sendOrderConfirmation(orderWithItems).catch(err => console.error('Email trigger failed:', err));
+            }
+
             // Revalidate dashboard and order page
             revalidatePath('/admin/dashboard');
             revalidatePath(`/orders/${order.id}`);
