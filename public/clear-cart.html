@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Cart - Tummy Tikki Burger</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #FF5722 0%, #FF9800 100%);
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 400px;
+        }
+        h1 {
+            color: #FF5722;
+            margin-bottom: 1rem;
+        }
+        button {
+            background: #FF5722;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #E64A19;
+            transform: scale(1.05);
+        }
+        .message {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            display: none;
+        }
+        .success {
+            background: #4CAF50;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛒 Clear Cart</h1>
+        <p>Click the button below to clear your shopping cart and fix any display issues.</p>
+        <button onclick="clearCart()">Clear Cart</button>
+        <div id="message" class="message"></div>
+    </div>
+
+    <script>
+        function clearCart() {
+            try {
+                // Clear the cart from localStorage
+                localStorage.removeItem('tummy-tikki-cart');
+                
+                // Show success message
+                const messageEl = document.getElementById('message');
+                messageEl.textContent = '✅ Cart cleared successfully! Redirecting to homepage...';
+                messageEl.className = 'message success';
+                messageEl.style.display = 'block';
+                
+                // Redirect to homepage after 2 seconds
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+            } catch (error) {
+                alert('Error clearing cart: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

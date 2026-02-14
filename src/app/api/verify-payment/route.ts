@@ -1,33 +1,33 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
+    const body = await req.json();
     const {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
       orderId
-    } = await req.json();
+    } = body;
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
-    if (!keySecret) {
-      return NextResponse.json(
-        { error: 'Razorpay is not configured' },
-        { status: 500 }
-      );
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      console.error('RAZORPAY_KEY_SECRET is not set');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
 
-    const sign = razorpay_order_id + '|' + razorpay_payment_id;
-    const expectedSign = crypto
-      .createHmac('sha256', keySecret)
-      .update(sign.toString())
+    const generated_signature = crypto
+      .createHmac('sha256', secret)
+      .update(razorpay_order_id + '|' + razorpay_payment_id)
       .digest('hex');
 
-    if (razorpay_signature === expectedSign) {
-      // Update order in database
-      const { error } = await supabase
+    if (generated_signature === razorpay_signature) {
+      // Payment successful
+
+      // Update order and get order data to check for coupon code
+      const { data: order, error } = await supabaseAdmin
         .from('Order')
         .update({
           paymentStatus: 'PAID',
@@ -36,30 +36,51 @@ export async function POST(req: NextRequest) {
           razorpayPaymentId: razorpay_payment_id,
           razorpaySignature: razorpay_signature,
           updatedAt: new Date().toISOString(),
+          confirmedAt: new Date().toISOString(),
         })
-        .eq('id', orderId);
+        .eq('id', orderId)
+        .select('couponCode')
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating order status:', error);
+        return NextResponse.json(
+          { error: 'Payment verified but order update failed', details: error.message },
+          { status: 500 }
+        );
+      }
 
-      return NextResponse.json({ verified: true });
+      // If a coupon was used, increment its usage count via RPC or direct update
+      // Supabase JS doesn't have an atomic increment easily in-built without RPC
+      // But we can do it via a quick fetch-then-update or just use an SQL statement
+      if (order?.couponCode) {
+        // We'll use a raw increment update for reliability
+        await supabaseAdmin.rpc('increment_coupon_usage', { code_param: order.couponCode });
+      }
+
+      return NextResponse.json({
+        verified: true,
+        success: true,
+        message: 'Payment verified successfully'
+      });
     } else {
-      // Update payment as failed
-      const { error } = await supabase
+      await supabaseAdmin
         .from('Order')
         .update({
           paymentStatus: 'FAILED',
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         })
         .eq('id', orderId);
 
-      if (error) throw error;
-
-      return NextResponse.json({ verified: false }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Payment verification failed' },
+        { status: 400 }
+      );
     }
-  } catch (error) {
-    console.error('Payment verification failed:', error);
+  } catch (error: any) {
+    console.error('Error verifying payment:', error);
     return NextResponse.json(
-      { error: 'Verification failed' },
+      { error: error.message || 'Internal Server Error' },
       { status: 500 }
     );
   }

@@ -4,13 +4,20 @@ import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/badge'
 import { useState, useEffect } from 'react'
 import AddToCartButton from './AddToCartButton'
+import { MenuGridSkeleton } from './ui/Skeleton'
+import { CustomizationOption } from '@/lib/customizations'
+import { useCartStore } from '@/store/cartStore'
+import toast from 'react-hot-toast'
+import CustomizationModal from './CustomizationModal'
 
 interface MenuItem {
   id: string
   name: string
   description: string
   price: number
-  category: string
+  categoryId: string
+  categorySlug: string
+  category?: string
   image: string
   isVeg: boolean
   isAvailable: boolean
@@ -22,8 +29,11 @@ interface MenuData {
 
 export default function MenuGrid() {
   const [menuData, setMenuData] = useState<MenuData>({})
+  const [customizations, setCustomizations] = useState<CustomizationOption[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedItem, setSelectedItem] = useState<{ item: MenuItem; customizations: CustomizationOption[] } | null>(null)
+  const { addItem } = useCartStore()
 
   const fallbackMenuData: MenuData = {
     burger: [
@@ -32,7 +42,8 @@ export default function MenuGrid() {
         name: 'Regular Tummy Tikki Burger',
         description: 'Our signature homemade tikki burger with fresh veggies',
         price: 89,
-        category: 'burger',
+        categoryId: 'cat_burger',
+        categorySlug: 'burger',
         image: '',
         isVeg: true,
         isAvailable: true
@@ -42,7 +53,8 @@ export default function MenuGrid() {
         name: 'Cheesy Tummy Tikki Burger',
         description: 'Loaded with cheese for cheese lovers',
         price: 109,
-        category: 'burger',
+        categoryId: 'cat_burger',
+        categorySlug: 'burger',
         image: '',
         isVeg: true,
         isAvailable: true
@@ -52,7 +64,8 @@ export default function MenuGrid() {
         name: 'Paneer with Cheese Fully Loaded Burger',
         description: 'Premium paneer patty with extra cheese',
         price: 143,
-        category: 'burger',
+        categoryId: 'cat_burger',
+        categorySlug: 'burger',
         image: '',
         isVeg: true,
         isAvailable: true
@@ -64,7 +77,8 @@ export default function MenuGrid() {
         name: 'Butter Grilled Sandwich',
         description: 'Classic grilled sandwich with butter',
         price: 35,
-        category: 'sandwich',
+        categoryId: 'cat_sandwich',
+        categorySlug: 'sandwich',
         image: '',
         isVeg: true,
         isAvailable: true
@@ -74,61 +88,8 @@ export default function MenuGrid() {
         name: 'Jumbo Wheat Bread Sandwich',
         description: 'Healthy option with fresh veggies and melted cheese',
         price: 120,
-        category: 'sandwich',
-        image: '',
-        isVeg: true,
-        isAvailable: true
-      }
-    ],
-    sides: [
-      {
-        id: 'french-fries',
-        name: 'French Fries',
-        description: 'Crispy golden french fries',
-        price: 60,
-        category: 'sides',
-        image: '',
-        isVeg: true,
-        isAvailable: true
-      },
-      {
-        id: 'cheese-fries',
-        name: 'Cheese Fries',
-        description: 'French fries loaded with melted cheese',
-        price: 80,
-        category: 'sides',
-        image: '',
-        isVeg: true,
-        isAvailable: true
-      }
-    ],
-    beverage: [
-      {
-        id: 'cold-coffee',
-        name: 'Cold Coffee',
-        description: 'Refreshing cold coffee',
-        price: 70,
-        category: 'beverage',
-        image: '',
-        isVeg: true,
-        isAvailable: true
-      },
-      {
-        id: 'lime-soda',
-        name: 'Fresh Lime Soda',
-        description: 'Fresh and tangy lime soda',
-        price: 50,
-        category: 'beverage',
-        image: '',
-        isVeg: true,
-        isAvailable: true
-      },
-      {
-        id: 'masala-chaas',
-        name: 'Masala Chaas',
-        description: 'Traditional spiced buttermilk',
-        price: 40,
-        category: 'beverage',
+        categoryId: 'cat_sandwich',
+        categorySlug: 'sandwich',
         image: '',
         isVeg: true,
         isAvailable: true
@@ -142,12 +103,20 @@ export default function MenuGrid() {
 
   const fetchMenu = async () => {
     try {
-      const response = await fetch('/api/menu')
-      if (!response.ok) {
-        throw new Error('Failed to load menu from API')
+      const [menuRes, custRes] = await Promise.all([
+        fetch('/api/menu'),
+        fetch('/api/admin/customizations')
+      ])
+
+      if (!menuRes.ok || !custRes.ok) {
+        throw new Error('Failed to load menu or customizations')
       }
-      const data = await response.json()
-      setMenuData(data)
+
+      const mData = await menuRes.json()
+      const cData = await custRes.json()
+
+      setMenuData(mData)
+      setCustomizations(cData)
     } catch (error) {
       console.error('Error fetching menu:', error)
       setError('Menu service unavailable. Showing default menu.')
@@ -157,32 +126,71 @@ export default function MenuGrid() {
     }
   }
 
-  const menuCategories = [
-    {
-      title: "🍔 Burgers",
-      key: 'burger',
-      items: menuData.burger || []
-    },
-    {
-      title: "🥪 Sandwiches & Sides",
-      key: 'sandwich',
-      items: [...(menuData.sandwich || []), ...(menuData.sides || [])]
-    },
-    {
-      title: "🥤 Beverages",
-      key: 'beverage',
-      items: menuData.beverage || []
+  const handleItemClick = (item: MenuItem, customizationOptions: CustomizationOption[]) => {
+    if (!item.isAvailable) return;
+
+    if (customizationOptions.length > 0) {
+      setSelectedItem({
+        item: { ...item, category: item.categorySlug || 'burger' },
+        customizations: customizationOptions
+      });
     }
-  ]
+  }
+
+  const handleConfirmCustomization = (selected: any[]) => {
+    if (selectedItem) {
+      addItem(selectedItem.item as any, selected);
+      toast.success(`${selectedItem.item.name} added to cart! 🍔`, {
+        position: 'top-center',
+        duration: 2000,
+        style: {
+          background: '#FF5722',
+          color: 'white',
+        },
+      });
+      setSelectedItem(null);
+    }
+  }
+
+  const getCategoryTitle = (slug: string) => {
+    const icons: Record<string, string> = {
+      burger: "🍔",
+      sandwich: "🥪",
+      sides: "🍟",
+      beverage: "🥤",
+      beverages: "🥤",
+      dessert: "🍰",
+      deals: "🏷️",
+      pizza: "🍕"
+    };
+    const icon = icons[slug.toLowerCase()] || "🍴";
+    const title = slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    return `${icon} ${title}`;
+  };
+
+  const menuCategories = Object.keys(menuData).map(slug => {
+    const items = menuData[slug] || [];
+    const categoryId = items[0]?.categoryId;
+    const catCustomizations = customizations.filter(c => c.categoryId === categoryId);
+
+    return {
+      title: getCategoryTitle(slug),
+      key: slug,
+      items,
+      customizationOptions: catCustomizations
+    };
+  });
 
   if (loading) {
     return (
       <section id="menu" className="py-16 md:py-20 bg-gray-50">
         <div className="container mx-auto px-4">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading delicious menu...</p>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 opacity-50">
+              Loading our <span className="text-orange-500">Delicious</span> Menu...
+            </h2>
           </div>
+          <MenuGridSkeleton />
         </div>
       </section>
     )
@@ -221,70 +229,80 @@ export default function MenuGrid() {
             >
               {category.title}
             </motion.h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {category.items.map((item: MenuItem, itemIndex: number) => (
                 <motion.div
                   key={item.id}
-                  className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group"
                   initial={{ y: 50, opacity: 0 }}
                   whileInView={{ y: 0, opacity: 1 }}
                   transition={{ duration: 0.6, delay: (categoryIndex * 0.1) + (itemIndex * 0.1) }}
                   viewport={{ once: true }}
                   whileHover={{ y: -5 }}
                 >
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-3">
-                      <h4 className="text-lg font-bold text-gray-900 flex-1">
-                        {item.name}
-                      </h4>
-                      {item.id === 'regular-burger' && (
-                        <Badge className="bg-green-500 text-white text-xs ml-2">
-                          Most Popular
-                        </Badge>
+                  <div
+                    onClick={() => handleItemClick(item, category.customizationOptions)}
+                    className={`bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group h-full flex flex-col ${item.isAvailable ? 'cursor-pointer' : ''}`}
+                  >
+                    <div className="aspect-[4/3] w-full bg-gray-100 overflow-hidden relative">
+                      {item.image ? (
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ${!item.isAvailable ? 'grayscale opacity-60' : ''}`}
+                        />
+                      ) : (
+                        <div className={`w-full h-full flex items-center justify-center text-gray-400 ${!item.isAvailable ? 'grayscale opacity-60' : ''}`}>
+                          <span className="text-4xl">🍔</span>
+                        </div>
                       )}
-                      {item.id === 'cheesy-burger' && (
-                        <Badge className="bg-yellow-500 text-white text-xs ml-2">
-                          Cheese Lovers
-                        </Badge>
-                      )}
-                      {item.id === 'paneer-burger' && (
-                        <Badge className="bg-purple-500 text-white text-xs ml-2">
-                          Premium
-                        </Badge>
-                      )}
-                      {item.id === 'grilled-sandwich' && (
-                        <Badge className="bg-blue-500 text-white text-xs ml-2">
-                          Cheapest
-                        </Badge>
-                      )}
-                      {item.id === 'jumbo-sandwich' && (
-                        <Badge className="bg-green-600 text-white text-xs ml-2">
-                          Healthy
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    <p className="text-gray-600 text-sm mb-4 leading-relaxed">
-                      {item.description}
-                    </p>
-                    
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-2xl font-bold text-orange-500">
-                        Rs {item.price}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        {item.isVeg && (
-                          <span className="text-green-600 text-xs">🌱</span>
+                      <div className="absolute top-4 right-4 flex flex-col gap-2">
+                        {!item.isAvailable && (
+                          <Badge className="bg-red-600/90 backdrop-blur-sm text-white border-transparent animate-pulse">
+                            Sold Out
+                          </Badge>
                         )}
+                        {item.id === 'regular-burger' && item.isAvailable && (
+                          <Badge className="bg-green-500/90 backdrop-blur-sm text-white border-transparent">
+                            Popular
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm p-1.5 rounded-lg shadow-sm">
+                        <div className={`w-3 h-3 rounded-full border ${item.isVeg
+                          ? 'bg-green-600 border-green-700'
+                          : 'bg-red-600 border-red-700'
+                          }`}></div>
                       </div>
                     </div>
 
-                    <AddToCartButton 
-                      item={item}
-                      size="sm"
-                      className="w-full"
-                    />
+                    <div className="p-6 flex flex-col flex-grow">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-xl font-bold text-gray-900 group-hover:text-orange-500 transition-colors">
+                          {item.name}
+                        </h4>
+                      </div>
+
+                      <p className="text-gray-600 text-sm mb-6 leading-relaxed line-clamp-2 h-10 flex-grow">
+                        {item.description}
+                      </p>
+
+                      <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-50">
+                        <span className="text-2xl font-black text-gray-900">
+                          ₹{item.price}
+                        </span>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <AddToCartButton
+                            item={{
+                              ...item,
+                              category: item.categorySlug || category.key
+                            }}
+                            size="sm"
+                            availableCustomizations={category.customizationOptions}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
               ))}
@@ -311,6 +329,16 @@ export default function MenuGrid() {
           </div>
         </motion.div>
       </div>
+
+      {selectedItem && (
+        <CustomizationModal
+          isOpen={!!selectedItem}
+          onCloseAction={() => setSelectedItem(null)}
+          onConfirmAction={handleConfirmCustomization}
+          item={selectedItem.item as any}
+          options={selectedItem.customizations}
+        />
+      )}
     </section>
   )
 }
